@@ -21,6 +21,9 @@ param(
     # 比 '.'（0x2E；任何 git 仓库都有 .git）和 '0'（0x30）都靠前。
     [string]$Name = '!000-guard'
 )
+# 身份从当前 Windows 身份取，不用 $env:USERDOMAIN/$env:USERNAME —— 远程会话里那两个是空的，
+# 拼出来的身份无法解析，AddAccessRule 会抛 "identity references could not be translated"（实测踩到过）。
+$me = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 #psr7-selfroute-begin
 # This script has to run under PowerShell 7. Launched by Windows PowerShell 5.1, it restarts
 # itself in pwsh with the same arguments. That covers the callers a PATH shim cannot reach: a
@@ -86,7 +89,7 @@ function Test-SentinelOrdering {
         $sp = Join-Path $probeRoot $SentinelName
         $aclP = Get-Acl -LiteralPath $sp
         $ruleP = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            "$env:USERDOMAIN\$env:USERNAME",
+            $me,
             [System.Security.AccessControl.FileSystemRights]::Delete,
             [System.Security.AccessControl.InheritanceFlags]::None,
             [System.Security.AccessControl.PropagationFlags]::None,
@@ -96,7 +99,7 @@ function Test-SentinelOrdering {
 
         $pr = Get-Acl -LiteralPath $probeRoot
         $rulePr = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            "$env:USERDOMAIN\$env:USERNAME",
+            $me,
             [System.Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles,
             [System.Security.AccessControl.InheritanceFlags]::None,
             [System.Security.AccessControl.PropagationFlags]::None,
@@ -150,12 +153,12 @@ function Install-Sentinel {
     $pacl = Get-Acl -LiteralPath $parent
     $already = @($pacl.Access | Where-Object {
             $_.AccessControlType -eq 'Deny' -and
-            $_.IdentityReference.Value -eq "$env:USERDOMAIN\$env:USERNAME" -and
+            $_.IdentityReference.Value -eq $me -and
             ($_.FileSystemRights -band $dsf) -ne 0
         }).Count -gt 0
     if (-not $already) {
         $prule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-            "$env:USERDOMAIN\$env:USERNAME", $dsf,
+            $me, $dsf,
             [System.Security.AccessControl.InheritanceFlags]::None,
             [System.Security.AccessControl.PropagationFlags]::None,
             [System.Security.AccessControl.AccessControlType]::Deny)

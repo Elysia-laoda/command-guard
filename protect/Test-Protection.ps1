@@ -140,7 +140,7 @@ New-Item -ItemType Directory -Path 'E:\_acl-test' -Force | Out-Null
 Set-Content -LiteralPath 'E:\_acl-test\inside.txt' -Value 'inside'
 $aclTrap = Get-Acl -LiteralPath 'E:\_acl-test'
 $nonInherited = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    "$env:USERDOMAIN\$env:USERNAME", $rights,
+    [System.Security.Principal.WindowsIdentity]::GetCurrent().Name, $rights,
     [System.Security.AccessControl.InheritanceFlags]::None,
     [System.Security.AccessControl.PropagationFlags]::None,
     [System.Security.AccessControl.AccessControlType]::Deny)

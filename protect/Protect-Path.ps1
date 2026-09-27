@@ -17,13 +17,17 @@ param(
     [string]$Path,
 
     # 默认针对当前用户；也可以指定 SID、用户或组名（例如 BUILTIN\Users）。
-    [string]$Identity = "$env:USERDOMAIN\$env:USERNAME",
+    # ⚠ 不要用 "$env:USERDOMAIN\$env:USERNAME" 作默认值：**在 WinRM/PSSession 里这两个环境变量是空的**，
+    # 拼出来的身份无法解析，AddAccessRule 会抛 "Some or all identity references could not be translated"，
+    # 而 ACE 根本没写上 —— 远程部署时踩过。WindowsIdentity::GetCurrent().Name 在远程会话里也可靠。
+    [string]$Identity,
 
     # 只拒删除时，文件内容仍然可以被清空 —— 写只需要 WRITE 位，不需要 DELETE 位（实测）。
     # 加这个开关把写也拒掉，代价是这棵树变成只读，谁都不能在里面工作。
     # 不可再生的归档数据（素材、成品）用这个；还在用的工作目录不要用。
     [switch]$DenyWrite
 )
+if (-not $Identity) { $Identity = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name }
 #psr7-selfroute-begin
 # This script has to run under PowerShell 7. Launched by Windows PowerShell 5.1, it restarts
 # itself in pwsh with the same arguments. That covers the callers a PATH shim cannot reach: a
