@@ -1,0 +1,8 @@
+{
+  "_note": "ACL 这条线调的不是层数，是范围：只列你希望'绝不能被删'的目录，每个条目都会连整棵子树一起锁住。depth 参数在这里没有意义——非继承的拒绝规则只会留下空壳，内容照样被清空（见 Test-Protection.ps1 第 7 节）。",
+  "_why_not_depth": "命令护栏那条线（src/policy.mjs 的 protectedRoots.depth）才有层数概念：它检查的是命令的目标，可以精确到第几层。ACL 检查的是操作系统动作，做不到。",
+  "_usage": "Protect-FromConfig.ps1            # 按本文件上锁\nProtect-FromConfig.ps1 -Unprotect # 全部解锁\nProtect-FromConfig.ps1 -WhatIf    # 只打印将要执行的动作",
+  "_modes": "条目可以是字符串 \"D:\\\\dir\"（只拒删除，树内仍可编辑），也可以是 { \"path\": \"D:\\\\dir\", \"denyWrite\": true }（拒写+拒删，树变只读但仍可读 —— 给不可再生的归档数据用）。只拒删除挡不住'内容被清空'，详见 README 的'能钻到空子吗'。",
+  "lock": [
+  ]
+}

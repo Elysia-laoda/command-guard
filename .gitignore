@@ -1,0 +1,13 @@
+# 本机配置：包含真实路径与项目名，不进仓库。模板见 guard.json.example
+guard.json
+
+# 审计日志：逐条记录被检查过的命令原文，含绝对路径
+logs/
+
+# 工具状态（钩子的会话状态，含 session id）
+.mimosa/
+
+# 运行时杂物
+*.log
+*.tmp
+.vscode/

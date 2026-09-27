@@ -1,0 +1,13 @@
+# 换行与二进制：不写这个，别人克隆之后脚本会坏掉。
+# Pin line endings and binary files so a clone behaves the same on any platform.
+* text=auto eol=lf
+
+# PowerShell 与 cmd 脚本必须是 CRLF —— 否则在某些环境的 PowerShell 里会解析出错
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.json text eol=lf
+*.mjs text eol=lf
+*.sh text eol=lf

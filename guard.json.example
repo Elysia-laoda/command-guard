@@ -1,0 +1,32 @@
+{
+  "_note": "复制成 guard.json 再改 —— 它是单一事实源：引擎读 roots[].depth（命令级），protect/guard.ps1 读 roots[].level（操作系统级）。改这里就够了，不用碰代码。 / Copy this to guard.json and edit. It is the single source of truth: the engine reads roots[].depth (command level), protect/guard.ps1 reads roots[].level (OS level). Editing this file is all you need - no code changes.",
+
+  "_depth": "力度：0=只护根本身  1=根+第一层  n=往下 n 层  -1=整棵子树 / Depth: 0 = the root only, 1 = root + first level, n = n levels down, -1 = the whole subtree.",
+
+  "_level": "机制：sentinel=绊线（目录不会被整棵删掉，内部照常干活，适合还在用的项目）｜tree=锁死（子树内什么都删不掉）｜archive=锁死+拒写（连内容都改不了，但仍可读，适合不可再生的数据） / Mechanism: sentinel = tripwire (the directory cannot be deleted as a whole, everything inside keeps working - for projects you still work in); tree = locked (nothing inside can be deleted); archive = locked + write denied (contents cannot be changed either, but stay readable - for irreplaceable data).",
+
+  "_exclude": "按名字排除，不进保护名单；点开头、隐藏、系统目录以及哨兵自己总是被跳过。 / Excluded by name. Dot-prefixed, hidden and system directories - and the tripwire itself - are always skipped.",
+
+  "_arm": "哨兵与绊线都要求删除命令带 -ErrorAction Stop；Remove-Item.shim.ps1 会自动补上，第三方命令则由引擎的规则提醒。 / Both the tripwire and the circuit breaker require the delete command to carry -ErrorAction Stop. Remove-Item.shim.ps1 adds it automatically; for third-party commands the engine's rules warn about it.",
+
+  "_sentinelName": "哨兵目录名。必须排在同级第一位：'!'（0x21）是可打印 ASCII 里最小的，比 '.'（0x2E，git 仓库的 .git）和 '0'（0x30）都靠前。Guard.ps1 install 会真删一次验证它确实排第一。 / The tripwire directory name. It must sort first among its siblings: '!' (0x21) is the lowest printable ASCII, ahead of '.' (0x2E - every git repo has a .git) and '0' (0x30). Guard.ps1 install verifies it by actually performing a delete.",
+
+  "sentinelName": "!000-guard",
+
+  "roots": [
+    {
+      "path": "D:\\MyWorkspace",
+      "depth": 1,
+      "level": "sentinel",
+      "exclude": [
+        "_trash",
+        "_session-temp"
+      ]
+    },
+    {
+      "path": "D:\\SomeIrreplaceableData",
+      "depth": -1,
+      "level": "archive"
+    }
+  ]
+}
