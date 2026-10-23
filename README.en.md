@@ -140,6 +140,19 @@ and the first refusal throws, **aborting the whole batch**.
 
 **A single protected item is enough to stop the whole batch, and `-Force` cannot defeat it** (an ACL refusal is an OS-level access denial, not an attribute). The cost: it is *damage limitation*, not a shield, and it changes semantics — so the shim only adds `Stop` when the caller did **not** specify `-ErrorAction` themselves (`COMMAND_GUARD_STOP_ON_REFUSAL=0` for fully native semantics).
 
+
+**Rule `unarmed-recursive` (2026-10-23).** Stopping a whole batch needs **both a refusal and `Stop`**. So a recursive delete *inside a protected tree* that omits `-ErrorAction Stop` downgrades the protection to a hollow shell — contents wiped, only the sentinel itself left. Such a command is now **blocked outright**:
+
+```
+Remove-Item -Recurse 'D:\proj\build'                       → block (unarmed-recursive)
+Remove-Item -Recurse 'D:\proj\build' -ErrorAction Stop     → warn (allowed, with advice)
+Remove-Item -Recurse 'E:\scratch'                          → warn (outside any tree, not escalated)
+```
+
+- PowerShell-family verbs only (`Remove-Item` / `ri`); bash `rm` and cmd `rd /s` have no such notion and are unaffected.
+- Ordering: protected-range checks run first (`protected-root` / `protected-depth`); this rule only covers the case that would otherwise be allowed yet relies on the sentinel.
+- Why the rule rather than relying on the shim: the shim only runs in sessions that load a profile, and agent hosts commonly run `pwsh -NoProfile`.
+- Disable it with `"requireArmedRecursive": false` in `guard.json`.
 ### `Remove-Item` never uses the Recycle Bin (and that has nothing to do with `-Force`)
 
 | Approach | Lands in the bin |

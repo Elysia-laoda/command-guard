@@ -133,6 +133,19 @@ if (!Force && (Attributes & (Hidden | System | ReadOnly)) != 0)
 
 **一个受保护项就能打断整批删除，而且 `-Force` 破不了它**（ACL 拒绝是操作系统级访问拒绝，不是属性问题）。代价：它是**伤害限制**不是盾牌，且改变了语义 —— 所以遮蔽层只在调用方**没显式指定** `-ErrorAction` 时才补 `Stop`（要完全原生语义：`COMMAND_GUARD_STOP_ON_REFUSAL=0`）。
 
+
+**规则 `unarmed-recursive`（2026-10-23）**：既然「拦得住整批」要求**有人拒绝 + 有 Stop**，那么在**受保护树内**做递归删除却不写 `-ErrorAction Stop`，就等于把保护降级成空壳 —— 内容被清空、只剩哨兵自己。这种写法现在**直接拦下**：
+
+```
+Remove-Item -Recurse 'D:\proj\build'                       → block（unarmed-recursive）
+Remove-Item -Recurse 'D:\proj\build' -ErrorAction Stop     → warn（放行提示）
+Remove-Item -Recurse 'E:\scratch'                          → warn（树外，不升级）
+```
+
+- 只看 PowerShell 系动词（`Remove-Item` / `ri`）；bash 的 `rm`、cmd 的 `rd /s` 没有这个概念，不受影响。
+- 判定顺序：先按受保护范围拦（`protected-root` / `protected-depth`），这条只补「本来会放行、却依赖哨兵兜底」的那一类。
+- 为什么由规则兜而不是只靠遮蔽层：遮蔽层只在**加载 profile** 的会话里生效，而 agent 宿主常用 `pwsh -NoProfile`，那层根本不执行。
+- 关掉它：在 `guard.json` 里写 `"requireArmedRecursive": false`。
 ### `Remove-Item` 从不走回收站（和 `-Force` 无关）
 
 | 做法 | 进回收站 |

@@ -56,6 +56,19 @@ export const DEFAULT_RULES = {
 
   /** 变量插值：跨 shell 传变量时，展开结果无法在命令文本里核对。 */
   variableInterpolation: "\\$[A-Za-z_(]|\\$\\{|%[A-Za-z_]+%",
+
+  /**
+   * 受保护树内的递归删除，必须显式上膛（`-ErrorAction Stop`）。
+   *
+   * 操作系统层的哨兵（ACL 拒删目录）只有在「有人拒绝 + WriteError 服从 Stop」两件事
+   * 同时成立时才拦得住整批；缺 Stop 时拒绝只会被跳过，内容照样清空、只剩空壳目录和
+   * 哨兵自己（见 memory: destructive-file-operations-rules 第 42/43 条）。
+   * PowerShell 的遮蔽层能自动补 Stop，但只对加载 profile 的会话有效 ——
+   * agent 宿主动辄 `pwsh -NoProfile`，遮蔽层根本不执行，所以这一层必须由规则兜。
+   *
+   * 置 false 可关掉这条（不推荐）。
+   */
+  requireArmedRecursive: true,
 };
 
 function toRe(s) {
@@ -115,6 +128,30 @@ export function protectedHit(p, protectedRoots, defaultDepth = 1) {
   return null;
 }
 
+/**
+ * 是否落在某个受保护根的**子树内**（不限层数）。
+ *
+ * 与 protectedHit 的区别：protectedHit 只看"是否在允许拦的层数内"，
+ * 这里只问"是不是在这棵树里"——用来判断这次删除是否依赖操作系统层的哨兵兜底。
+ */
+export function insideProtectedRoot(p, protectedRoots) {
+  const low = String(p).toLowerCase().replace(/\\+$/, "");
+  for (const entry of protectedRoots ?? []) {
+    const root = String(typeof entry === "string" ? entry : (entry?.path ?? "")).toLowerCase().replace(/\\+$/, "");
+    if (!root) continue;
+    if (low === root || low.startsWith(root + "\\")) return true;
+  }
+  return false;
+}
+
+/** 只有 PowerShell 系动词才有"上膛"这回事；bash/cmd 的删除命令不适用。 */
+function isPowerShellVerb(verb) {
+  return verb === "Remove-Item" || verb === "ri";
+}
+
+/** 命令里是否显式写了 `-ErrorAction Stop` 或 `-EA Stop`（含冒号写法）。 */
+const ARMED_RE = /-ErrorAction\s*:?\s*Stop\b|-EA\s*:?\s*Stop\b/i;
+
 const OK = { verdict: "allow", matched: null, reason: "", findings: [] };
 
 function block(rule, target, detail) {
@@ -172,6 +209,25 @@ export function evaluateTargets(input, rules = DEFAULT_RULES) {
     }
   }
 
+  // 规则 unarmed-recursive：受保护树内的递归删除必须上膛。
+  // 放在受保护范围判定之后 —— 该拦的（protected-root / protected-depth）先拦，
+  // 这条只补"本来会放行、但依赖哨兵兜底"的那一类。
+  if (
+    recursive &&
+    rules.requireArmedRecursive !== false &&
+    input?.errorActionStop === false &&
+    isPowerShellVerb(verb)
+  ) {
+    const inside = targets.map(normalizePath).find((t) => insideProtectedRoot(t, rules.protectedRoots));
+    if (inside !== undefined) {
+      const detail =
+        `${verb} 在受保护树内做递归删除，但没有写 -ErrorAction Stop：${inside}。` +
+        "没有它时，操作系统的拒绝只会被跳过（内容清空、只剩空壳目录），哨兵拦不住整批。" +
+        "加上 -ErrorAction Stop 再重试。";
+      return block("unarmed-recursive", inside, detail);
+    }
+  }
+
   // 放行但提示：绝对路径上的递归/强制删除，属于"删掉就回不来"的范畴。
   if (recursive && targets.length) {
     const detail =
@@ -214,6 +270,9 @@ export function evaluate(event, rules = DEFAULT_RULES) {
       targets: extractPaths(command),
       recursive: toRe(rules.recursiveOrForce).test(command),
       usesVariable: toRe(rules.variableInterpolation).test(command),
+      // 结构化调用方不传这个字段时保持 undefined —— 那条规则就不参与判定，
+      // 免得改坏已经自己解析过命令的适配器。
+      errorActionStop: ARMED_RE.test(command),
     },
     rules
   );

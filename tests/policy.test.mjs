@@ -31,8 +31,8 @@ export function run() {
   const textCases = [
     ["工作区根", `Remove-Item '${WORKSPACE}' -Recurse -Force`, "block", "protected-root"],
     ["工作区第一层", `Remove-Item '${WORKSPACE}\\tools' -Recurse -Force`, "block", "protected-depth"],
-    ["工作区第二层（刻意不拦）", `Remove-Item '${WORKSPACE}\\tools\\sub' -Recurse -Force`, "warn", "recursive-absolute"],
-    ["工作区更深一层（刻意不拦）", `Remove-Item '${WORKSPACE}\\tools\\a\\b\\c' -Recurse -Force`, "warn", "recursive-absolute"],
+    ["工作区第二层（刻意不拦）", `Remove-Item '${WORKSPACE}\\tools\\sub' -Recurse -Force -ErrorAction Stop`, "warn", "recursive-absolute"],
+    ["工作区更深一层（刻意不拦）", `Remove-Item '${WORKSPACE}\\tools\\a\\b\\c' -Recurse -Force -ErrorAction Stop`, "warn", "recursive-absolute"],
     ["卷根", 'Remove-Item "E:\\" -Recurse -Force', "block", "volume-root"],
     ["表外路径的顶层目录（不拦）", "Remove-Item 'E:\\scratch' -Recurse -Force", "warn", "recursive-absolute"],
     ["含 .. 的路径", "Remove-Item 'D:\\work\\a\\..\\b' -Recurse", "block", "dotdot"],
@@ -43,6 +43,14 @@ export function run() {
       "block",
       "var-in-destructive",
     ],
+    // ---- 受保护树内递归删除必须上膛（unarmed-recursive） ----
+    ["受保护树内递归、没上膛（拦）", `Remove-Item '${WORKSPACE}\\tools\\sub' -Recurse -Force`, "block", "unarmed-recursive"],
+    ["受保护树内递归、上膛（放行提示）", `Remove-Item '${WORKSPACE}\\tools\\sub' -Recurse -Force -ErrorAction Stop`, "warn", "recursive-absolute"],
+    ["-EA 别名也算上膛", `Remove-Item '${WORKSPACE}\\tools\\sub' -Recurse -EA Stop`, "warn", "recursive-absolute"],
+    ["-ErrorAction:Stop 冒号写法也算上膛", `Remove-Item '${WORKSPACE}\\tools\\sub' -Recurse -ErrorAction:Stop`, "warn", "recursive-absolute"],
+    ["受保护树外递归、没上膛（不升级，仍只是提示）", `Remove-Item 'E:\\scratch' -Recurse`, "warn", "recursive-absolute"],
+    ["受保护根自己、没上膛 —— 先按受保护范围拦", `Remove-Item '${WORKSPACE}' -Recurse`, "block", "protected-root"],
+    ["bash 的 rm 没有上膛这回事 —— 只是提示，不被 unarmed-recursive 拦", `rm -rf /tmp/build`, "warn", "recursive-absolute"],
     ["普通删除（放行）", "Remove-Item 'D:\\work\\build' -ErrorAction SilentlyContinue", "allow", null],
     ["无关命令（放行）", "git status --short", "allow", null],
     ["空命令（放行）", "", "allow", null],
@@ -75,7 +83,7 @@ export function run() {
     ["力度=3：第三层被拦", 3, `${WORKSPACE}\\tools\\a\\b`, "block"],
   ];
   for (const [name, depth, target, want] of dial) {
-    const v = evaluate({ command: `Remove-Item '${target}' -Recurse -Force` }, withDepth(depth));
+    const v = evaluate({ command: `Remove-Item '${target}' -Recurse -Force -ErrorAction Stop` }, withDepth(depth));
     check(name, v.verdict, v.matched, want, want === "block" ? v.matched : null);
   }
 
@@ -92,7 +100,7 @@ export function run() {
     defaultDepth: 1,
     protectedRoots: [{ path: WORKSPACE, depth: 0 }],
   };
-  const m = evaluate({ command: `Remove-Item '${WORKSPACE}\\tools' -Recurse -Force` }, mixed);
+  const m = evaluate({ command: `Remove-Item '${WORKSPACE}\\tools' -Recurse -Force -ErrorAction Stop` }, mixed);
   check("条目自带 depth=0 覆盖 defaultDepth", m.verdict, m.matched, "warn", null);
 
   // ---- 结构化核心：命令已解析过的调用方走这条 ----

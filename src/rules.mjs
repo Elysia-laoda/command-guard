@@ -24,8 +24,22 @@ export function loadRules({ file = null, depth = null } = {}) {
   if (source) {
     const raw = JSON.parse(readFileSync(source, "utf8"));
     if (Array.isArray(raw?.roots)) {
-      // guard.json 的形状：roots[] 直接就是受保护根
-      rules = { ...DEFAULT_RULES, protectedRoots: raw.roots };
+      // guard.json 的形状：roots[] 直接就是受保护根。
+      // 另外允许在同一份文件里覆盖少量策略键（白名单，避免 _note / sentinelName 之类的
+      // 部署字段被当成规则）。没有这一步时 guard.json 只能改保护范围，
+      // 文档里写的"关掉某条规则"就落不了地。
+      const OVERRIDABLE = [
+        "defaultDepth",
+        "destructiveVerbs",
+        "recursiveOrForce",
+        "variableInterpolation",
+        "requireArmedRecursive",
+      ];
+      const overrides = {};
+      for (const key of OVERRIDABLE) {
+        if (raw[key] !== undefined) overrides[key] = raw[key];
+      }
+      rules = { ...DEFAULT_RULES, ...overrides, protectedRoots: raw.roots };
     }
     else {
       rules = { ...DEFAULT_RULES, ...raw };
