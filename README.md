@@ -229,6 +229,7 @@ command-guard/
   adapters/zcode-hook.mjs     ZCode PreToolUse 适配器（薄，含审计日志）
   adapters/guard.sh           任何 shell 都能用的包装器（薄）
   adapters/Remove-Item.shim.ps1  同名函数遮蔽：让每条 Remove-Item 先过判断程序
+  adapters/dsh/               DSH 适配器（薄；含删除白名单与完整性校验，见其 README）
   protect/Guard.ps1           前门：status / install / remove（默认干跑）
   protect/GuardSentinel.ps1   哨兵：装 + 真删验证 + 体检
   protect/Protect-Path.ps1    子树锁（-DenyWrite = 归档模式）
@@ -239,6 +240,23 @@ command-guard/
 
 **装进工作区之后**（本机实测）：16 个哨兵全部行为验证通过；验收 10/10 —— 根级与项目级的
 新建 / 改写 / **原子保存** / 删文件 / 删子目录全部正常，而**整目录删除被截断且零损失**。
+
+## DSH 适配器（adapters/dsh）
+
+给 DeepSeek Harness 用的薄适配器：复用本仓库的 `src/policy.mjs` 与 `guard.json`，只做
+`tools/pre-execute` 的字段搬运、决策映射与审计（`party: "dsh"`）。不复制任何规则。
+
+2026-11-24 起新增**删除白名单**：受保护根往下 1 层是红线，但 agent 的临时产物正好长在那一层。
+白名单给一条显式窄缝 —— 只对 `protected-depth` 生效、精确匹配、**一次只删一个目标**、默认一次性
++ 24h 过期、写入即校验（根/系统目录/`.dsh`/哨兵/目录联接一律拒绝），并在**删前快照父目录、删后
+比对**：邻近文件有任何非预期增删改即判定违规并自动挂起整张白名单，需人工 `resume`。
+
+~~~bash
+node adapters/dsh/scripts/allow.mjs add "D:\path\_probe.mjs" --note "临时探查脚本"
+node adapters/dsh/scripts/allow.mjs list | revoke "<路径>" | purge | resume
+~~~
+
+细节与配置见 `adapters/dsh/README.md`；自测 `node --test "adapters/dsh/tests/*.test.mjs"`（24 条）。
 
 ## 许可
 

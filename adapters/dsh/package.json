@@ -1,0 +1,36 @@
+{
+  "name": "dsh-command-guard",
+  "version": "0.2.0",
+  "description": "DSH 适配器：复用 Elysia-laoda/command-guard 的策略引擎，在 tools/pre-execute 上拦截破坏性命令。Thin DSH adapter over the command-guard policy engine.",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/allowlist.js",
+    "cordis.patch.yml",
+    "scripts",
+    "tests",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test --test-force-exit \"tests/*.test.mjs\"",
+    "check": "node --check lib/index.js",
+    "install-plugin": "node scripts/install.mjs",
+    "allow": "node scripts/allow.mjs",
+    "uninstall-plugin": "node scripts/uninstall.mjs"
+  }
+}

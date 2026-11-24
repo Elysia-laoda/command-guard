@@ -1,0 +1,12 @@
+# dsh-command-guard — profile patch layer.
+#
+# 一行 loader entry：宿主半在 tools/pre-execute 上挂闸门。
+# 策略引擎不在这里 —— 它复用 D:\ZCodeprojecttt\command-guard\src\policy.mjs，
+# 连同那份 guard.json（受保护范围）一起读，规则只在那边维护一份。
+- insert:
+    - id: command-guard
+      name: 'dsh-command-guard'
+      config:
+        guardRoot: 'D:/ZCodeprojecttt/command-guard'
+        # 审计默认写到 <guardRoot>/logs/audit.jsonl（与 ZCode 钩子共用一份流水，
+        # party 字段区分来源）；想分开就设 auditFile。
