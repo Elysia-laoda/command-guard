@@ -20,7 +20,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   addEntry,
   consume,
@@ -92,6 +92,8 @@ export function apply(ctx, config = {}) {
     : join(home, 'command-guard', 'delete-allowlist.json'));
   const allowlistEnabled = config.allowlist !== false;
   const integrityEnabled = config.integrity !== false;
+  // 提示里给出的白名单命令要指向**本包实际所在位置**，不能写死某个 checkout 路径。
+  const allowScriptPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'allow.mjs');
   const PENDING_TTL_MS = 5 * 60 * 1000;
   /** 待校验的删除：pre 时快照父目录，post 时比对。 */
   const pending = [];
@@ -273,7 +275,7 @@ export function apply(ctx, config = {}) {
         reason: 'command-guard 拦下了这条命令（规则 ' + (verdict.matched ?? '?') + '）：' + verdict.reason
           + '\n命令原文：' + command.slice(0, 400)
           + '\n若确认安全：把目标写成字面量、去掉变量与递归/强制开关后重试；或让用户自己执行。'
-          + '\n临时工具可走删除白名单（一次一个目标）：node D:\\dshproject\\dsh-command-guard\\scripts\\allow.mjs add "<路径>" --note "<原因>"',
+          + '\n临时工具可走删除白名单（一次一个目标）：node ' + allowScriptPath + ' add "<路径>" --note "<原因>"',
       };
     }
     return next();
